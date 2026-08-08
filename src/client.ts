@@ -203,6 +203,23 @@ export class KstonebaseClient {
     );
   }
 
+  listSpecificationChanges(specId: string): Promise<ApiResponse<unknown>> {
+    return this.getJson(
+      `/api/mcp/specifications/${encodeURIComponent(specId)}/changes`,
+    );
+  }
+
+  readSpecificationChange(
+    specId: string,
+    changeId: string,
+    ifNoneMatch?: string,
+  ): Promise<ApiResponse<unknown> | NotModified> {
+    return this.get(
+      `/api/mcp/specifications/${encodeURIComponent(specId)}/changes/${encodeURIComponent(changeId)}`,
+      ifNoneMatch,
+    );
+  }
+
   listOpenQuestions(
     specId: string,
     query: ListOpenQuestionsQuery = {},
@@ -312,7 +329,7 @@ export class KstonebaseClient {
 
   updateSpecificationContent(
     specId: string,
-    body: { content: string; version: number },
+    body: { content: string; version: number; changeNote?: string },
   ): Promise<ApiResponse<unknown>> {
     return this.sendJson(
       "PATCH",
@@ -323,7 +340,12 @@ export class KstonebaseClient {
 
   updateSpecificationSection(
     specId: string,
-    body: { sectionPath: string; newSection: string; version: number },
+    body: {
+      sectionPath: string;
+      newSection: string;
+      version: number;
+      changeNote?: string;
+    },
   ): Promise<ApiResponse<unknown>> {
     return this.sendJson(
       "PATCH",
@@ -394,12 +416,15 @@ export class KstonebaseClient {
     );
   }
 
+  // `version` is accepted for backward compatibility only. append_context no
+  // longer edits the document, so there is nothing to contend for and the API
+  // ignores it.
   appendContext(
     specId: string,
     body: {
       content: string;
       sectionTitle?: string;
-      version: number;
+      version?: number;
     },
   ): Promise<ApiResponse<unknown>> {
     return this.sendJson(

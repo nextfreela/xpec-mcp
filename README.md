@@ -321,6 +321,8 @@ All tools take ids as strings. Bound Workspace/Product ids are inferred from `.k
 | `read_specification`          | Current Markdown body of a spec, plus status and OCC `version`. Use `format="rendered"` to strip open-question and assumption markers.                                                 |
 | `list_specification_versions` | Reviewed snapshots of a spec, newest first.                                                                                                                                            |
 | `read_specification_version`  | Full Markdown of a specific approved revision. Pair with `list_specification_versions` to diff history against current.                                                                |
+| `list_specification_changes`  | Decisions and fixes recorded against a spec, newest first. These live outside the document, so the spec body stays consolidated — read them to recover the "why".                      |
+| `read_specification_change`   | Full Markdown of one change entry. Pair with `list_specification_changes`.                                                                                                             |
 | `list_open_questions`         | Questions and assumptions attached to a spec. Resolved/dismissed items are excluded unless `includeResolved=true`.                                                                     |
 
 ### Write tools
@@ -329,7 +331,8 @@ All tools take ids as strings. Bound Workspace/Product ids are inferred from `.k
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `start_new_version`            | Open a new Draft of a Reviewed spec. Required before any write tool on a published spec. No-op when the spec is already a Draft (returns `hint="already_draft"`).                                        |
 | `update_specification_content` | Replace the full Markdown body of a Draft. OCC-guarded — pass the `version` from your most recent `read_specification`. Returns `STALE_VERSION` (409) if another writer landed first; re-read and retry. |
-| `update_specification_section` | Replace one heading-bound section (`sectionPath="## Pricing"`). OCC-guarded. Records a before-image revision.                                                                                            |
+| `update_specification_section` | Replace one heading-bound section (`sectionPath="## Pricing"`). OCC-guarded. Records a before-image revision. Pass `changeNote` to say why — it is stored as a change entry, not in the document.        |
+| `append_context`               | Record a decision or note **against** a spec as an immutable change entry. Does not modify the document, so it works on any non-archived spec and needs no `start_new_version`.                          |
 | `request_review`               | Move a Draft to `Needs Review` for a human to approve. Rejected with `OPEN_QUESTIONS_PRESENT` if questions remain — surface them to the user first.                                                      |
 | `discard_draft`                | Roll a Draft (or Needs Review) back to its last approved version. Rejected on specs that have never been approved.                                                                                       |
 | `create_free_specification`    | Create a new Markdown spec in the bound Free product. Path uniqueness is enforced. Rejected with `PRODUCT_TYPE_MISMATCH` on Web Application Products — use `start_new_version` on a structured spec.     |

@@ -175,3 +175,70 @@ describe("KstonebaseClient — checkAuth", () => {
     expect(probe).toEqual({ ok: true, products: 2 });
   });
 });
+
+describe("KstonebaseClient — change history", () => {
+  function client(fetcher: ReturnType<typeof vi.fn>) {
+    return new KstonebaseClient({
+      apiUrl: "https://x.example",
+      token: "t",
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+  }
+
+  it("lists change entries for a spec", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () =>
+      mockResponse({ body: { items: [{ changeId: "c1" }] } }),
+    );
+    await client(fetcher).listSpecificationChanges("spec_1");
+    expect(fetcher.mock.calls[0][0]).toBe(
+      "https://x.example/api/mcp/specifications/spec_1/changes",
+    );
+  });
+
+  it("reads one change entry and honours If-None-Match", async () => {
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+      const ifNoneMatch = (init?.headers as Record<string, string>)[
+        "if-none-match"
+      ];
+      if (ifNoneMatch === '"c1"') {
+        return mockResponse({ status: 304, headers: { etag: '"c1"' } });
+      }
+      return mockResponse({ body: { changeId: "c1", content: "the note" } });
+    });
+    const c = client(fetcher);
+
+    const fresh = await c.readSpecificationChange("spec_1", "c1");
+    expect(fetcher.mock.calls[0][0]).toBe(
+      "https://x.example/api/mcp/specifications/spec_1/changes/c1",
+    );
+    expect(fresh).toMatchObject({ body: { content: "the note" } });
+
+    const cached = await c.readSpecificationChange("spec_1", "c1", '"c1"');
+    expect(cached).toMatchObject({ notModified: true, etag: '"c1"' });
+  });
+
+  it("omits version from append_context when the caller doesn't pass one", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () =>
+      mockResponse({ body: { change: { id: "c1" } } }),
+    );
+    await client(fetcher).appendContext("spec_1", { content: "a note" });
+    const [, init] = fetcher.mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toEqual({ content: "a note" });
+  });
+
+  it("passes changeNote through on section writes", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () =>
+      mockResponse({ body: { spec: { id: "spec_1" } } }),
+    );
+    await client(fetcher).updateSpecificationSection("spec_1", {
+      sectionPath: "## Pricing",
+      newSection: "## Pricing\nnew",
+      version: 3,
+      changeNote: "tightened the wording",
+    });
+    const [, init] = fetcher.mock.calls[0];
+    expect(JSON.parse(init?.body as string).changeNote).toBe(
+      "tightened the wording",
+    );
+  });
+});
