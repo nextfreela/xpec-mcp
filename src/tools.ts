@@ -490,6 +490,57 @@ export function registerReadTools(
   );
 
   server.registerTool(
+    "list_specification_changes",
+    {
+      title: "List change entries",
+      description:
+        "List the change entries recorded against a specification, newest first. Read-only. These are the decisions and fixes behind the spec, kept out of the document so the spec body reads as one consolidated statement — use this to recover the 'why'. Distinct from list_specification_versions, which returns whole-document snapshots.",
+      annotations: READ_TOOL,
+      inputSchema: {
+        specId: z.string().min(1),
+      },
+    },
+    async (args) =>
+      runTool(
+        "list_specification_changes",
+        { specId: args.specId },
+        async () => {
+          const res = await client.listSpecificationChanges(args.specId);
+          return ok(res.body);
+        },
+      ),
+  );
+
+  server.registerTool(
+    "read_specification_change",
+    {
+      title: "Read a change entry",
+      description:
+        "Read the full Markdown of one change entry. Read-only. Pair with list_specification_changes to trace why a spec says what it says.",
+      annotations: READ_TOOL,
+      inputSchema: {
+        specId: z.string().min(1),
+        changeId: z.string().min(1),
+      },
+    },
+    async (args) =>
+      runTool(
+        "read_specification_change",
+        { specId: args.specId },
+        async () => {
+          const res = await client.readSpecificationChange(
+            args.specId,
+            args.changeId,
+          );
+          if ("notModified" in res) {
+            return ok({ notModified: true, etag: res.etag });
+          }
+          return ok(res.body);
+        },
+      ),
+  );
+
+  server.registerTool(
     "list_open_questions",
     {
       title: "List open questions",
@@ -571,12 +622,13 @@ export function registerWriteTools(
     {
       title: "Replace a draft's full content",
       description:
-        "Replace the entire Markdown body of a Draft specification. Side effect: content + OCC version are updated. Pass `version` from the most recent read to detect concurrent edits. Returns 409 STALE_VERSION when another writer landed first — re-read and retry.",
+        "Replace the entire Markdown body of a Draft specification. Side effect: content + OCC version are updated. Pass `version` from the most recent read to detect concurrent edits. Returns 409 STALE_VERSION when another writer landed first — re-read and retry. Pass `changeNote` to record why the content changed; it is stored as a change entry rather than inside the document.",
       annotations: OVERWRITE_WRITE_TOOL,
       inputSchema: {
         specId: z.string().min(1),
         content: z.string().max(1_000_000),
         version: z.number().int().min(1),
+        changeNote: z.string().trim().min(1).max(2_000).optional(),
       },
     },
     async (args) =>
@@ -587,6 +639,7 @@ export function registerWriteTools(
           const res = await client.updateSpecificationContent(args.specId, {
             content: args.content,
             version: args.version,
+            changeNote: args.changeNote,
           });
           return ok(res.body);
         },
@@ -598,13 +651,14 @@ export function registerWriteTools(
     {
       title: "Replace a single section of a draft",
       description:
-        'Replace one heading-bound section of a Draft specification (e.g. sectionPath="## Pricing"). Side effect: the section text is replaced atomically and a before-image revision is recorded. OCC-guarded — pass `version` from the most recent read.',
+        'Replace one heading-bound section of a Draft specification (e.g. sectionPath="## Pricing"). Side effect: the section text is replaced atomically, a before-image revision is recorded, and a change entry logs the edit. OCC-guarded — pass `version` from the most recent read. Pass `changeNote` to say why; it becomes the change entry\'s body instead of an auto-generated one.',
       annotations: OVERWRITE_WRITE_TOOL,
       inputSchema: {
         specId: z.string().min(1),
         sectionPath: z.string().trim().min(1).max(200),
         newSection: z.string().max(1_000_000),
         version: z.number().int().min(1),
+        changeNote: z.string().trim().min(1).max(2_000).optional(),
       },
     },
     async (args) =>
@@ -616,6 +670,7 @@ export function registerWriteTools(
             sectionPath: args.sectionPath,
             newSection: args.newSection,
             version: args.version,
+            changeNote: args.changeNote,
           });
           return ok(res.body);
         },
@@ -696,15 +751,17 @@ export function registerWriteTools(
   server.registerTool(
     "append_context",
     {
-      title: "Append a dated section of context to a draft",
+      title: "Record a decision or note against a spec",
       description:
-        'Append a dated section of Markdown to a Draft specification. Side effect: a new section titled "YYYY-MM-DD — {sectionTitle}" is appended, or the existing same-day section grows downward, via the existing section-apply path. Inherits OCC, the before-image revision, and the Draft-only lock from update_specification_section.',
+        "Record a decision or note against a specification as an immutable change entry. Side effect: one change entry is created and linked to the spec. The specification's own content is NOT modified, so this works on any non-archived spec and needs no start_new_version. Use update_specification_section when the consolidated document itself should change. Read the entries back with list_specification_changes.",
       annotations: ADDITIVE_WRITE_TOOL,
       inputSchema: {
         specId: z.string().min(1),
         content: z.string().min(1).max(1_000_000),
         sectionTitle: z.string().trim().min(1).max(100).optional(),
-        version: z.number().int().min(1),
+        // Kept for backward compatibility with older callers; the API ignores
+        // it because the document is never touched.
+        version: z.number().int().min(1).optional(),
       },
     },
     async (args) =>

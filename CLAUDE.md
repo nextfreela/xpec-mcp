@@ -26,8 +26,12 @@ source of truth.
    `list_specifications`.
 2. Read the current spec with `read_specification`.
 3. Check unresolved questions and assumptions with `list_open_questions`.
-4. If older decisions matter, inspect history with
-   `list_specification_versions` and `read_specification_version`.
+4. If older decisions matter, inspect history. Two surfaces, and they answer
+   different questions:
+   - `list_specification_changes` / `read_specification_change` — the decisions
+     and fixes recorded against the spec. Start here when you need the "why".
+   - `list_specification_versions` / `read_specification_version` — whole-document
+     snapshots. Use these to diff past wording against current.
 5. Only then plan the implementation and update the code.
 
 If you skip step 1–4 because "the change looks small," stop and run them

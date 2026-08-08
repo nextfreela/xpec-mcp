@@ -158,6 +158,8 @@ export function buildToolInventory(binding: AgentDocsBinding): ToolInventory {
     "search_specifications",
     "list_specification_versions",
     "read_specification_version",
+    "list_specification_changes",
+    "read_specification_change",
     "list_open_questions",
     "list_products",
     "read_product",

@@ -116,6 +116,30 @@
         "destructive_justification": "Does not modify or delete any revision history."
       }
     },
+    "list_specification_changes": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only lists the change entries recorded against a specification and does not change content.",
+        "open_world_justification": "Only reads private Kstonebase change history and does not affect public systems.",
+        "destructive_justification": "Does not remove or overwrite any change entry."
+      }
+    },
+    "read_specification_change": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only returns the Markdown of a single change entry without mutating state.",
+        "open_world_justification": "Only reads private Kstonebase change history and cannot publish or send it to public destinations.",
+        "destructive_justification": "Does not modify or delete any change entry."
+      }
+    },
     "list_open_questions": {
       "annotations": {
         "readOnlyHint": true,
@@ -231,9 +255,9 @@
         "destructiveHint": false
       },
       "justifications": {
-        "read_only_justification": "Appends a dated context section to a draft specification, which changes Kstonebase content.",
-        "open_world_justification": "Only updates private Kstonebase specification content and does not publish externally.",
-        "destructive_justification": "Adds context to a draft section and does not delete or overwrite approved specification history."
+        "read_only_justification": "Creates a change entry linked to a specification, which adds Kstonebase content.",
+        "open_world_justification": "Only writes private Kstonebase change history and does not publish externally.",
+        "destructive_justification": "Appends a new immutable change entry; the specification's own content is never modified and no existing entry is deleted or overwritten."
       }
     }
   },
@@ -303,11 +327,19 @@
       "expected_output_url": null
     },
     {
-      "description": "Append dated context to a draft specification.",
-      "user_prompt": "Append a dated note to spec_123 under Conversation notes: The reviewer confirmed we should keep human approval before marking specs Reviewed. Use version 8.",
+      "description": "Record a decision against a specification.",
+      "user_prompt": "Record a note on spec_123 titled Conversation notes: The reviewer confirmed we should keep human approval before marking specs Reviewed.",
       "file_attachment_urls": null,
       "tools_triggered": "append_context",
-      "expected_output": "Adds the note to a dated context section in the draft and returns the updated specification metadata.",
+      "expected_output": "Creates a change entry linked to the specification and returns it alongside the unchanged specification metadata.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Trace why a specification says what it says.",
+      "user_prompt": "What decisions have been recorded against specification spec_123?",
+      "file_attachment_urls": null,
+      "tools_triggered": "list_specification_changes",
+      "expected_output": "Returns the change entries recorded against the specification, newest first.",
       "expected_output_url": null
     },
     {
